@@ -10,3 +10,4 @@ def test_health_ok():
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "ok"
+    assert "live_provider_enabled" in body

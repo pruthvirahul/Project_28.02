@@ -30,6 +30,7 @@ def test_optimize_endpoint_returns_ranked_results():
     assert response.status_code == 200
     body = response.json()
     assert len(body["results"]) > 0
+    assert body["source"] in ("mock", "amadeus")
     assert "score_total" in body["results"][0]
 
 

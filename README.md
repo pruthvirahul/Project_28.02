@@ -64,3 +64,26 @@ curl -s -X POST http://127.0.0.1:8000/v1/routes/score \
   -H "Content-Type: application/json" \
   -d '{"offers":[{"provider":"a","transport_mode":"flight","total_fare":200,"duration_minutes":100,"layovers":0},{"provider":"b","transport_mode":"flight","total_fare":120,"duration_minutes":300,"layovers":1}]}'
 ```
+
+
+## Live provider mode (Amadeus)
+
+1. Fill keys in `backend/.env` (template also in `backend/.env.example`):
+
+```env
+AMADEUS_API_KEY=your_key
+AMADEUS_API_SECRET=your_secret
+AMADEUS_ENV=test
+```
+
+2. Export them before running (or use your shell env loading flow):
+
+```bash
+cd backend
+set -a && source .env && set +a
+uvicorn app.main:app --reload --port 8000
+```
+
+3. Call optimize endpoint with `mode: flight`. If keys are valid, response will contain:
+- `"source": "amadeus"`
+Otherwise it safely falls back to `"source": "mock"`.
