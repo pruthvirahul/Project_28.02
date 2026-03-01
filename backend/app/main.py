@@ -7,7 +7,7 @@ from app.schemas import Offer, RouteOptimizeRequest, RouteScoreRequest
 from app.services.amadeus import AmadeusClient, RouteQuery
 from app.services.route_optimizer import rank_offers
 
-app = FastAPI(title="AI Travel Planner API", version="0.3.0")
+app = FastAPI(title="AI Travel Planner API", version="0.4.0")
 
 
 @app.get("/health")
@@ -16,24 +16,17 @@ def health() -> dict:
         "status": "ok",
         "timestamp": datetime.utcnow().isoformat(),
         "live_provider_enabled": settings.amadeus_enabled,
+        "default_currency": "INR",
     }
 
 
 def _mock_provider_offers(payload: RouteOptimizeRequest) -> list[Offer]:
     sample = [
-        Offer(provider="demo-air", transport_mode="flight", total_fare=129.99, duration_minutes=210, layovers=0),
-        Offer(provider="demo-rail", transport_mode="train", total_fare=89.00, duration_minutes=340, layovers=0),
-        Offer(provider="demo-bus", transport_mode="bus", total_fare=45.00, duration_minutes=540, layovers=0),
-        Offer(provider="demo-air-plus", transport_mode="flight", total_fare=179.49, duration_minutes=120, layovers=0),
-        Offer(provider="demo-air-connector", transport_mode="flight", total_fare=99.99, duration_minutes=260, layovers=1),
+        Offer(provider="demo-air", transport_mode="flight", total_fare=8200.0, currency="INR", duration_minutes=210, duration_iso="PT3H30M", segments=1, layovers=0),
+        Offer(provider="demo-air-plus", transport_mode="flight", total_fare=10500.0, currency="INR", duration_minutes=120, duration_iso="PT2H", segments=1, layovers=0),
+        Offer(provider="demo-air-connector", transport_mode="flight", total_fare=7600.0, currency="INR", duration_minutes=260, duration_iso="PT4H20M", segments=2, layovers=1),
     ]
-
-    return [
-        offer
-        for offer in sample
-        if (payload.mode == "any" or offer.transport_mode == payload.mode)
-        and offer.layovers <= payload.max_layovers
-    ]
+    return [o for o in sample if o.layovers <= payload.max_layovers]
 
 
 @app.post("/v1/routes/optimize")
@@ -48,6 +41,7 @@ async def optimize_route(payload: RouteOptimizeRequest) -> dict:
                 origin=payload.origin,
                 destination=payload.destination,
                 departure_date=payload.date,
+                currency_code=payload.preferred_currency.upper(),
             )
         )
 
@@ -56,11 +50,24 @@ async def optimize_route(payload: RouteOptimizeRequest) -> dict:
         source = "amadeus"
 
     ranked = rank_offers(offers)
+    mobile_results = [
+        {
+            "provider": r.provider,
+            "price": f"{r.total_fare:.2f}",
+            "currency": r.currency,
+            "duration": r.duration_iso or f"PT{r.duration_minutes}M",
+            "segments": r.segments,
+            "label": r.label,
+            "score": r.score_total,
+        }
+        for r in ranked
+    ]
+
     return {
         "query": payload.model_dump(),
         "source": source,
-        "results": [item.model_dump() for item in ranked],
-        "note": "Set AMADEUS_API_KEY/AMADEUS_API_SECRET in .env to enable live flight provider.",
+        "results": mobile_results,
+        "note": "INR-first mobile response. Set AMADEUS_API_KEY/AMADEUS_API_SECRET in backend/.env for live fares.",
     }
 
 

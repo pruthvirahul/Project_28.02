@@ -13,6 +13,7 @@ class RouteQuery:
     origin: str
     destination: str
     departure_date: str
+    currency_code: str = "INR"
     adults: int = 1
 
 
@@ -45,6 +46,7 @@ class AmadeusClient:
                     "destinationLocationCode": query.destination,
                     "departureDate": query.departure_date,
                     "adults": query.adults,
+                    "currencyCode": query.currency_code,
                     "max": 5,
                 },
             )
@@ -57,11 +59,15 @@ class AmadeusClient:
             if not itineraries:
                 continue
 
-            segs = itineraries[0].get("segments", [])
-            duration_minutes = _duration_minutes(itineraries[0].get("duration", "PT0M"))
-            layovers = max(len(segs) - 1, 0)
+            itinerary = itineraries[0]
+            segs = itinerary.get("segments", [])
+            duration_iso = itinerary.get("duration", "PT0M")
+            duration_minutes = _duration_minutes(duration_iso)
+            segments = max(len(segs), 1)
+            layovers = max(segments - 1, 0)
 
-            price = float(item.get("price", {}).get("grandTotal", 0))
+            price_obj = item.get("price", {})
+            price = float(price_obj.get("grandTotal", 0))
             if price <= 0:
                 continue
 
@@ -70,7 +76,10 @@ class AmadeusClient:
                     provider="amadeus",
                     transport_mode="flight",
                     total_fare=price,
+                    currency=price_obj.get("currency", query.currency_code),
                     duration_minutes=max(duration_minutes, 1),
+                    duration_iso=duration_iso,
+                    segments=segments,
                     layovers=layovers,
                 )
             )
@@ -79,7 +88,6 @@ class AmadeusClient:
 
 
 def _duration_minutes(iso_duration: str) -> int:
-    # Minimal parser for strings like PT2H30M / PT45M / PT10H
     hours = 0
     minutes = 0
     value = iso_duration.replace("PT", "")

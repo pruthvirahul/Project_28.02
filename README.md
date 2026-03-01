@@ -87,3 +87,28 @@ uvicorn app.main:app --reload --port 8000
 3. Call optimize endpoint with `mode: flight`. If keys are valid, response will contain:
 - `"source": "amadeus"`
 Otherwise it safely falls back to `"source": "mock"`.
+
+
+## INR-first API response for mobile UI
+
+For `POST /v1/routes/optimize`, use:
+
+```json
+{
+  "origin": "HYD",
+  "destination": "CMB",
+  "date": "2026-06-10",
+  "mode": "flight",
+  "preferred_currency": "INR"
+}
+```
+
+Response format is mobile-card friendly:
+- `provider`
+- `price` (string, 2 decimals)
+- `currency` (INR)
+- `duration` (ISO format)
+- `segments`
+- `label` and `score` for ranking explanation
+
+This is ready for a Flutter list/card UI.
